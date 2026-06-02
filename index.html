@@ -339,18 +339,17 @@
     gap: 5px;
     flex-wrap: nowrap;
     flex-shrink: 0;
+    width: 100%;
   }
 
-  .answer-word-space {
-    width: 10px;
-    height: clamp(34px, 9vw, 40px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .answer-word-label {
+    font-size: 9px;
+    letter-spacing: 1px;
     color: var(--border);
-    font-size: 10px;
-    flex-shrink: 0;
-    align-self: center;
+    text-transform: uppercase;
+    align-self: flex-end;
+    padding-bottom: 6px;
+    padding-left: 2px;
   }
 
   .answer-slot {
@@ -1214,13 +1213,7 @@ function renderAnswerSlots(title) {
 
     container.appendChild(group);
 
-    // Add a visible spacer between words (not after last word)
-    if (wIdx < words.length - 1) {
-      const spacer = document.createElement('div');
-      spacer.className = 'answer-word-space';
-      spacer.textContent = '·';
-      container.appendChild(spacer);
-    }
+
   });
 }
 
