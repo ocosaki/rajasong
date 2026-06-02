@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Find the Raja Song</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #D4A843;
+    --gold-light: #F0C96A;
+    --gold-dim: #8B6914;
+    --deep: #0D0A06;
+    --surface: #1A1509;
+    --card: #221C0A;
+    --border: #3A2E10;
+    --text: #F5EDD6;
+    --text-dim: #A08B5A;
+    --correct: #4CAF50;
+    --tile-bg: #2E2408;
+    --tile-border: #6B5218;
+    --tile-placed: #3D3010;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--deep);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── INTRO SCREEN ── */
+  #intro {
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+    background: radial-gradient(ellipse at 50% 30%, #2A1F00 0%, var(--deep) 70%);
+  }
+
+  .intro-ornament {
+    font-size: 48px;
+    margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .intro-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    margin-bottom: 12px;
+  }
+
+  .intro-headline {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--gold);
+    margin-bottom: 8px;
+    text-shadow: 0 0 40px rgba(212,168,67,0.3);
+  }
+
+  .intro-sub {
+    font-size: 17px;
+    font-style: italic;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+
+  .intro-rule {
+    width: 60px;
+    height: 1px;
+    background: var(--gold-dim);
+    margin: 0 auto 32px;
+  }
+
+  .intro-desc {
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.7;
+    max-width: 300px;
+    margin: 0 auto 40px;
+  }
+
+  .intro-desc strong {
+    color: var(--gold-light);
+    font-style: italic;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: var(--deep);
+    border: none;
+    padding: 16px 48px;
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(212,168,67,0.25);
+  }
+
+  .btn-primary:active { transform: scale(0.97); background: var(--gold-light); }
+
+  /* ── GAME SCREEN ── */
+  #game { background: var(--deep); }
+
+  .game-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .game-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: 2px;
+  }
+
+  .progress-pills {
+    display: flex;
+    gap: 4px;
+  }
+
+  .progress-pill {
+    width: 20px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .progress-pill.answered { background: var(--gold); }
+  .progress-pill.skipped { background: var(--gold-dim); }
+  .progress-pill.current { background: var(--gold-light); }
+
+  .game-body {
+    padding: 20px 16px 0;
+    flex: 1;
+  }
+
+  /* Song counter */
+  .song-counter {
+    font-family: 'Playfair Display', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    margin-bottom: 6px;
+  }
+
+  /* ILAIYARAAJA letter tracker */
+  .name-tracker {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 20px;
+    justify-content: center;
+  }
+
+  .name-letter {
+    width: 26px;
+    height: 30px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--border);
+    background: var(--surface);
+    transition: all 0.4s;
+  }
+
+  .name-letter.revealed {
+    color: var(--gold);
+    border-color: var(--gold-dim);
+    background: var(--tile-placed);
+    box-shadow: 0 0 8px rgba(212,168,67,0.2);
+  }
+
+  .name-letter.current-letter {
+    border-color: var(--gold);
+    color: var(--gold-light);
+    animation: pulse-letter 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-letter {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(212,168,67,0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(212,168,67,0); }
+  }
+
+  /* Audio player */
+  .audio-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .clue-line {
+    font-size: 14px;
+    font-style: italic;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+    line-height: 1.5;
+    padding-left: 12px;
+    border-left: 2px solid var(--gold-dim);
+  }
+
+  .audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .play-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--gold);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    box-shadow: 0 2px 12px rgba(212,168,67,0.3);
+  }
+
+  .play-btn:active { transform: scale(0.93); }
+  .play-btn svg { fill: var(--deep); }
+
+  .audio-progress-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .audio-progress {
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .audio-progress-fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 2px;
+    transition: width 0.1s linear;
+    width: 0%;
+  }
+
+  .audio-time {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: monospace;
+  }
+
+  /* Answer box */
+  .answer-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .answer-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-height: 52px;
+    padding: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+
+  .answer-slot {
+    width: 36px;
+    height: 40px;
+    background: var(--tile-placed);
+    border: 1px solid var(--tile-border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gold-light);
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .answer-slot.space-slot {
+    width: 14px;
+    background: transparent;
+    border: none;
+    cursor: default;
+  }
+
+  .answer-slot.empty {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: transparent;
+    cursor: default;
+  }
+
+  .answer-slot:not(.empty):not(.space-slot):active {
+    transform: scale(0.93);
+    background: var(--tile-bg);
+  }
+
+  /* Tile pool */
+  .tiles-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .tiles-pool {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 54px;
+    padding: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+
+  .tile {
+    width: 38px;
+    height: 44px;
+    background: var(--tile-bg);
+    border: 1px solid var(--tile-border);
+    border-bottom: 3px solid var(--gold-dim);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gold-light);
+    cursor: pointer;
+    transition: all 0.12s;
+    user-select: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  .tile:active {
+    transform: scale(0.9) translateY(2px);
+    border-bottom-width: 1px;
+    box-shadow: none;
+  }
+
+  .tile.used { opacity: 0; pointer-events: none; }
+
+  /* Action buttons */
+  .action-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .btn-skip {
+    flex: 1;
+    padding: 13px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'Crimson Pro', serif;
+    font-size: 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-skip:active { border-color: var(--gold-dim); color: var(--gold-dim); }
+
+  .btn-confirm {
+    flex: 2;
+    padding: 13px;
+    background: var(--gold);
+    border: none;
+    color: var(--deep);
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 3px 12px rgba(212,168,67,0.2);
+  }
+
+  .btn-confirm:disabled {
+    background: var(--border);
+    color: var(--text-dim);
+    box-shadow: none;
+    cursor: default;
+  }
+
+  .btn-confirm:not(:disabled):active { transform: scale(0.97); }
+
+  /* Song nav dots */
+  .song-nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .nav-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--tile-bg);
+    color: var(--text-dim);
+    font-family: 'Playfair Display', serif;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .nav-dot.current { border-color: var(--gold); color: var(--gold); background: var(--tile-placed); }
+  .nav-dot.answered { border-color: var(--gold-dim); background: var(--gold-dim); color: var(--deep); }
+  .nav-dot.skipped { border-color: var(--border); background: var(--surface); color: var(--text-dim); border-style: dashed; }
+
+  /* Submit row */
+  .submit-row {
+    padding: 12px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+
+  .btn-submit {
+    width: 100%;
+    padding: 15px;
+    background: transparent;
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-submit.ready {
+    background: linear-gradient(135deg, #2A1F00, #3D2E00);
+    border-color: var(--gold);
+    box-shadow: 0 0 20px rgba(212,168,67,0.15);
+  }
+
+  .btn-submit:active { transform: scale(0.98); }
+
+  /* ── RESULTS SCREEN ── */
+  #results {
+    background: var(--deep);
+    padding-bottom: 60px;
+  }
+
+  .results-hero {
+    background: radial-gradient(ellipse at 50% 0%, #3A2A00 0%, var(--deep) 60%);
+    padding: 50px 24px 32px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .results-eyebrow {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    margin-bottom: 16px;
+  }
+
+  .results-name {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .results-name-letter {
+    width: 34px;
+    height: 40px;
+    background: var(--card);
+    border: 1px solid var(--gold-dim);
+    border-bottom: 3px solid var(--gold);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--gold);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s;
+    box-shadow: 0 0 12px rgba(212,168,67,0.15);
+  }
+
+  .results-name-letter.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .results-tagline {
+    font-size: 16px;
+    font-style: italic;
+    color: var(--text-dim);
+    opacity: 0;
+    transition: opacity 1s 0.5s;
+  }
+
+  .results-tagline.show { opacity: 1; }
+
+  .results-list {
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.5s;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .result-card.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .result-number {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+    min-width: 28px;
+  }
+
+  .result-info { flex: 1; }
+
+  .result-song {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: baseline;
+    gap: 1px;
+  }
+
+  .result-song .first-letter {
+    font-size: 34px;
+    line-height: 1;
+    color: var(--gold);
+    font-weight: 900;
+  }
+
+  .result-clue {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .result-status {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .birthday-footer {
+    text-align: center;
+    padding: 32px 24px 16px;
+    opacity: 0;
+    transition: opacity 1s;
+  }
+
+  .birthday-footer.show { opacity: 1; }
+
+  .birthday-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+
+  .birthday-sub {
+    font-size: 14px;
+    font-style: italic;
+    color: var(--text-dim);
+  }
+
+  /* Correct answer flash */
+  @keyframes correct-flash {
+    0% { background: var(--tile-placed); }
+    50% { background: rgba(76,175,80,0.3); border-color: #4CAF50; }
+    100% { background: var(--tile-placed); }
+  }
+
+  .answer-slot.correct-flash {
+    animation: correct-flash 0.6s ease;
+  }
+
+  /* Stars burst for correct */
+  .stars-burst {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    pointer-events: none;
+    z-index: 999;
+    font-size: 24px;
+    animation: burst 0.8s ease-out forwards;
+  }
+
+  @keyframes burst {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+  }
+  /* ── SCORE SCREEN ── */
+  #score {
+    background: var(--deep);
+    align-items: stretch;
+  }
+
+  .score-hero {
+    background: radial-gradient(ellipse at 50% 0%, #3A2A00 0%, var(--deep) 60%);
+    padding: 60px 24px 40px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .score-eyebrow {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    margin-bottom: 20px;
+  }
+
+  .score-number {
+    font-family: 'Playfair Display', serif;
+    font-size: 80px;
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(212,168,67,0.4);
+    margin-bottom: 8px;
+  }
+
+  .score-label {
+    font-size: 16px;
+    font-style: italic;
+    color: var(--text-dim);
+  }
+
+  .score-breakdown {
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .score-row-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    color: var(--text-dim);
+    min-width: 20px;
+  }
+
+  .score-row-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .score-row-tick {
+    font-size: 16px;
+  }
+
+  .score-actions {
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .btn-back-game {
+    flex: 1;
+    padding: 13px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'Crimson Pro', serif;
+    font-size: 15px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .btn-reveal {
+    flex: 2;
+    padding: 13px;
+    background: var(--gold);
+    border: none;
+    color: var(--deep);
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(212,168,67,0.25);
+  }
+
+  .btn-reveal:active { transform: scale(0.97); }
+  .btn-back-game:active { border-color: var(--gold-dim); color: var(--gold-dim); }
+</style>
+</head>
+<body>
+
+<!-- ── INTRO ── -->
+<div id="intro" class="screen active">
+  <div class="intro-ornament">🎵</div>
+  <div class="intro-title">A Musical Tribute</div>
+  <div class="intro-headline">Find the<br>Raja Song</div>
+  <div class="intro-rule"></div>
+  <div class="intro-sub">Listen. Decode. Discover.</div>
+  <div class="intro-desc">
+    11 songs. Listen to the clip,<br>
+    read the clue, and arrange the tiles<br>
+    to name the song.
+  </div>
+  <button class="btn-primary" onclick="startGame()">Begin</button>
+</div>
+
+<!-- ── GAME ── -->
+<div id="game" class="screen">
+  <div class="game-header">
+    <div class="game-logo">RAJA SONG</div>
+    <div class="progress-pills" id="progressPills"></div>
+  </div>
+
+  <div class="game-body">
+    <div class="song-counter" id="songCounter">SONG 1 OF 11</div>
+
+    <!-- ILAIYARAAJA letter tracker -->
+    <div class="name-tracker" id="nameTracker"></div>
+
+    <!-- Audio + Clue -->
+    <div class="audio-card">
+      <div class="clue-line" id="clueText"></div>
+      <div class="audio-controls">
+        <button class="play-btn" id="playBtn" onclick="togglePlay()">
+          <svg id="playIcon" width="18" height="18" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="audio-progress-wrap">
+          <div class="audio-progress" id="audioProgressBar" onclick="seekAudio(event)">
+            <div class="audio-progress-fill" id="audioProgressFill"></div>
+          </div>
+          <div class="audio-time" id="audioTime">0:00 / 0:00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Answer slots -->
+    <div class="answer-label">Your Answer</div>
+    <div class="answer-slots" id="answerSlots"></div>
+
+    <!-- Tile pool -->
+    <div class="tiles-label">Available Letters</div>
+    <div class="tiles-pool" id="tilesPool"></div>
+
+    <!-- Actions -->
+    <div class="action-row">
+      <button class="btn-skip" onclick="skipSong()">Park & Skip →</button>
+      <button class="btn-confirm" id="confirmBtn" onclick="confirmAnswer()" disabled>Confirm ✓</button>
+    </div>
+  </div>
+
+  <!-- Song nav -->
+  <div class="song-nav" id="songNav"></div>
+
+  <!-- Submit -->
+  <div class="submit-row">
+    <button class="btn-submit" id="submitBtn" onclick="checkScore()">Check Score</button>
+  </div>
+</div>
+
+<!-- ── SCORE SCREEN ── -->
+<div id="score" class="screen">
+  <div class="score-hero">
+    <div class="score-eyebrow">Your Score</div>
+    <div class="score-number" id="scoreNumber"></div>
+    <div class="score-label" id="scoreLabel"></div>
+  </div>
+  <div class="score-breakdown" id="scoreBreakdown"></div>
+  <div class="score-actions">
+    <button class="btn-back-game" onclick="showScreen('game')">← Back to Game</button>
+    <button class="btn-reveal" onclick="revealAll()">Reveal All Answers ✦</button>
+  </div>
+</div>
+
+<!-- ── RESULTS ── -->
+<div id="results" class="screen">
+  <div class="results-hero">
+    <div class="results-eyebrow">The Answer Was Always</div>
+    <div class="results-name" id="resultsName"></div>
+    <div class="results-tagline" id="resultsTagline">Happy Birthday, Maestro 🎶</div>
+  </div>
+  <div class="results-list" id="resultsList"></div>
+  <div class="birthday-footer" id="birthdayFooter">
+    <div class="birthday-text">இசை என்றும் வாழும்</div>
+    <div class="birthday-sub">The music lives forever</div>
+  </div>
+</div>
+
+<audio id="audioEl"></audio>
+
+<script>
+const SONGS = [
+  {
+    title: "INDHA MAAN",
+    clue: "Dear O Deer",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/1.mp3"
+  },
+  {
+    title: "LAALI LAALI",
+    clue: "A lullaby for the soul",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/2.mp3"
+  },
+  {
+    title: "ADI AATHAADI",
+    clue: "A voice that echoes across platforms and the beaches",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/3.mp3"
+  },
+  {
+    title: "INNUM ENNAI",
+    clue: "What more can one do?",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/4.mp3"
+  },
+  {
+    title: "YAAR VEETTIL ROJA",
+    clue: "A rose is a rose is a rose",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/5.mp3"
+  },
+  {
+    title: "AARAARO AARAARO",
+    clue: "Lullaby from Mumbai",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/6.mp3"
+  },
+  {
+    title: "RAJA KAIYA VECHAA",
+    clue: "His hands can make no mistake",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/7.mp3"
+  },
+  {
+    title: "ANTHA VAANATHA POLA",
+    clue: "Sky is the limit",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/8.mp3"
+  },
+  {
+    title: "ANDHI MAZHAI",
+    clue: "He loves violins and her violet eyes",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/9.mp3"
+  },
+  {
+    title: "JAANE DO NAA",
+    clue: "Hindi version of a Kannada masterpiece",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/10.mp3"
+  },
+  {
+    title: "AAYIRAM THAAMARAI",
+    clue: "Teenage love with a Carnatic and folk fusion",
+    audio: "https://raw.githubusercontent.com/ocosaki/rajasong/main/11.mp3"
+  }
+];
+
+// I-L-A-I-Y-A-R-A-A-J-A
+const SECRET_NAME = "ILAIYARAAJA";
+
+// State
+let currentSong = 0;
+let userAnswers = new Array(11).fill(null);  // null = unattempted, string = answer ('' = skipped)
+let placedLetters = [];   // array of {char, tileIndex} for current song
+let tileUsed = [];        // bool array for current song's pool
+let audioEl = document.getElementById('audioEl');
+let isPlaying = false;
+
+function startGame() {
+  showScreen('game');
+  buildNameTracker();
+  buildProgressPills();
+  buildSongNav();
+  loadSong(0);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function buildNameTracker() {
+  const tracker = document.getElementById('nameTracker');
+  tracker.innerHTML = '';
+  for (let i = 0; i < SECRET_NAME.length; i++) {
+    const el = document.createElement('div');
+    el.className = 'name-letter';
+    el.id = `nl-${i}`;
+    el.textContent = SECRET_NAME[i];
+    tracker.appendChild(el);
+  }
+  updateNameTracker();
+}
+
+function updateNameTracker() {
+  for (let i = 0; i < SONGS.length; i++) {
+    const el = document.getElementById(`nl-${i}`);
+    if (!el) continue;
+    el.classList.remove('revealed', 'current-letter');
+    if (userAnswers[i] && userAnswers[i] !== '') {
+      el.classList.add('revealed');
+    } else if (i === currentSong) {
+      el.classList.add('current-letter');
+    }
+  }
+}
+
+function buildProgressPills() {
+  const pills = document.getElementById('progressPills');
+  pills.innerHTML = '';
+  for (let i = 0; i < 11; i++) {
+    const p = document.createElement('div');
+    p.className = 'progress-pill';
+    p.id = `pill-${i}`;
+    pills.appendChild(p);
+  }
+  updateProgressPills();
+}
+
+function updateProgressPills() {
+  for (let i = 0; i < 11; i++) {
+    const p = document.getElementById(`pill-${i}`);
+    if (!p) continue;
+    p.className = 'progress-pill';
+    if (i === currentSong) p.classList.add('current');
+    else if (userAnswers[i] && userAnswers[i] !== '') p.classList.add('answered');
+    else if (userAnswers[i] === '') p.classList.add('skipped');
+  }
+}
+
+function buildSongNav() {
+  const nav = document.getElementById('songNav');
+  nav.innerHTML = '';
+  for (let i = 0; i < 11; i++) {
+    const d = document.createElement('button');
+    d.className = 'nav-dot';
+    d.id = `navdot-${i}`;
+    d.textContent = i + 1;
+    d.onclick = () => goToSong(i);
+    nav.appendChild(d);
+  }
+  updateSongNav();
+}
+
+function updateSongNav() {
+  for (let i = 0; i < 11; i++) {
+    const d = document.getElementById(`navdot-${i}`);
+    if (!d) continue;
+    d.className = 'nav-dot';
+    if (i === currentSong) d.classList.add('current');
+    else if (userAnswers[i] && userAnswers[i] !== '') d.classList.add('answered');
+    else if (userAnswers[i] === '') d.classList.add('skipped');
+  }
+  updateSubmitBtn();
+}
+
+function updateSubmitBtn() {
+  const answered = userAnswers.filter(a => a && a !== '').length;
+  const btn = document.getElementById('submitBtn');
+  if (answered > 0) {
+    btn.classList.add('ready');
+    btn.textContent = `Check Score (${answered}/11)`;
+  }
+}
+
+function loadSong(index) {
+  stopAudio();
+  currentSong = index;
+
+  const song = SONGS[index];
+  document.getElementById('songCounter').textContent = `SONG ${index + 1} OF 11`;
+  document.getElementById('clueText').textContent = song.clue;
+
+  // Build tile pool from answer (excluding spaces)
+  const letters = song.title.replace(/\s/g, '').split('');
+  // Shuffle tiles
+  const shuffled = [...letters].sort(() => Math.random() - 0.5);
+  tileUsed = new Array(shuffled.length).fill(false);
+
+  // If there's a saved partial answer, restore it
+  if (userAnswers[index] && userAnswers[index] !== '') {
+    // Pre-fill placed letters
+    const saved = userAnswers[index].replace(/\s/g, '').split('');
+    placedLetters = [];
+    const tempPool = [...shuffled];
+    saved.forEach(ch => {
+      const idx = tempPool.findIndex((t, i) => t === ch && !tileUsed[i]);
+      if (idx !== -1) {
+        tileUsed[idx] = true;
+        placedLetters.push({ char: ch, tileIndex: idx });
+      }
+    });
+  } else {
+    placedLetters = [];
+  }
+
+  renderAnswerSlots(song.title);
+  renderTilesPool(shuffled);
+  loadAudio(song.audio);
+  updateProgressPills();
+  updateSongNav();
+  updateNameTracker();
+  updateConfirmBtn();
+
+  // Scroll game body to top
+  document.querySelector('.game-body').scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
+function renderAnswerSlots(title) {
+  const container = document.getElementById('answerSlots');
+  container.innerHTML = '';
+  const parts = title.split('');
+  let letterIdx = 0;  // index into placedLetters
+
+  parts.forEach((ch, i) => {
+    const slot = document.createElement('div');
+    if (ch === ' ') {
+      slot.className = 'answer-slot space-slot';
+      slot.textContent = '';
+    } else {
+      const placed = placedLetters[letterIdx] || null;
+      slot.className = placed ? 'answer-slot' : 'answer-slot empty';
+      slot.textContent = placed ? placed.char : '';
+      slot.dataset.slotIdx = letterIdx;
+      if (placed) {
+        const tileIndex = placed.tileIndex;
+        slot.onclick = () => {
+          const idx = placedLetters.findIndex(p => p.tileIndex === tileIndex);
+          if (idx !== -1) returnTile(idx);
+        };
+      }
+      letterIdx++;
+    }
+    container.appendChild(slot);
+  });
+}
+
+function renderTilesPool(shuffled) {
+  const pool = document.getElementById('tilesPool');
+  pool.innerHTML = '';
+  shuffled.forEach((ch, i) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile' + (tileUsed[i] ? ' used' : '');
+    tile.textContent = ch;
+    tile.dataset.tileIdx = i;
+    tile.onclick = () => placeTile(i, ch);
+    pool.appendChild(tile);
+  });
+}
+
+function placeTile(tileIdx, ch) {
+  if (tileUsed[tileIdx]) return;
+
+  const song = SONGS[currentSong];
+  const totalLetters = song.title.replace(/\s/g, '').length;
+  if (placedLetters.length >= totalLetters) return;
+
+  tileUsed[tileIdx] = true;
+  placedLetters.push({ char: ch, tileIndex: tileIdx });
+
+  // Mark tile used
+  const tileEl = document.querySelector(`.tile[data-tile-idx="${tileIdx}"]`);
+  if (tileEl) tileEl.classList.add('used');
+
+  // Update next empty slot
+  const slots = document.querySelectorAll('.answer-slot:not(.space-slot)');
+  const nextEmpty = placedLetters.length - 1;
+  if (slots[nextEmpty]) {
+    slots[nextEmpty].textContent = ch;
+    slots[nextEmpty].classList.remove('empty');
+    slots[nextEmpty].onclick = () => returnTile(nextEmpty);
+  }
+
+  updateConfirmBtn();
+}
+
+function returnTile(slotIdx) {
+  if (slotIdx >= placedLetters.length) return;
+
+  // Remove only this one tile, return it to pool
+  const removed = placedLetters.splice(slotIdx, 1)[0];
+  tileUsed[removed.tileIndex] = false;
+  const tileEl = document.querySelector(`.tile[data-tile-idx="${removed.tileIndex}"]`);
+  if (tileEl) tileEl.classList.remove('used');
+
+  // Re-render answer slots (remaining tiles shift down to fill the gap)
+  renderAnswerSlots(SONGS[currentSong].title);
+  updateConfirmBtn();
+}
+
+function updateConfirmBtn() {
+  const song = SONGS[currentSong];
+  const totalLetters = song.title.replace(/\s/g, '').length;
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = placedLetters.length < totalLetters;
+}
+
+function confirmAnswer() {
+  const song = SONGS[currentSong];
+  const answer = placedLetters.map(p => p.char).join('');
+  const correct = song.title.replace(/\s/g, '');
+
+  if (answer === correct) {
+    userAnswers[currentSong] = song.title;
+    // Flash correct
+    const slots = document.querySelectorAll('.answer-slot:not(.space-slot)');
+    slots.forEach(s => s.classList.add('correct-flash'));
+
+    // Stars burst
+    const burst = document.createElement('div');
+    burst.className = 'stars-burst';
+    burst.textContent = '✦';
+    document.body.appendChild(burst);
+    setTimeout(() => burst.remove(), 900);
+
+    setTimeout(() => {
+      updateProgressPills();
+      updateSongNav();
+      updateNameTracker();
+      goToNextUnanswered();
+    }, 700);
+  }
+}
+
+function skipSong() {
+  if (userAnswers[currentSong] === null) {
+    userAnswers[currentSong] = '';
+  }
+  updateProgressPills();
+  updateSongNav();
+  goToNextUnanswered();
+}
+
+function goToNextUnanswered() {
+  // Find next unanswered or skipped after current
+  for (let offset = 1; offset <= 11; offset++) {
+    const next = (currentSong + offset) % 11;
+    if (!userAnswers[next] || userAnswers[next] === '') {
+      goToSong(next);
+      return;
+    }
+  }
+  // All answered
+  updateSubmitBtn();
+}
+
+function goToSong(index) {
+  stopAudio();
+  loadSong(index);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── AUDIO ──
+function loadAudio(src) {
+  audioEl.src = src;
+  audioEl.load();
+  isPlaying = false;
+  updatePlayIcon(false);
+  document.getElementById('audioProgressFill').style.width = '0%';
+  document.getElementById('audioTime').textContent = '0:00 / 0:00';
+}
+
+function togglePlay() {
+  if (isPlaying) {
+    audioEl.pause();
+    isPlaying = false;
+  } else {
+    audioEl.play().catch(() => {});
+    isPlaying = true;
+  }
+  updatePlayIcon(isPlaying);
+}
+
+function stopAudio() {
+  audioEl.pause();
+  isPlaying = false;
+  updatePlayIcon(false);
+}
+
+function updatePlayIcon(playing) {
+  const icon = document.getElementById('playIcon');
+  if (playing) {
+    icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+  } else {
+    icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+  }
+}
+
+audioEl.addEventListener('timeupdate', () => {
+  if (!audioEl.duration) return;
+  const pct = (audioEl.currentTime / audioEl.duration) * 100;
+  document.getElementById('audioProgressFill').style.width = pct + '%';
+  document.getElementById('audioTime').textContent =
+    `${fmt(audioEl.currentTime)} / ${fmt(audioEl.duration)}`;
+});
+
+audioEl.addEventListener('ended', () => {
+  isPlaying = false;
+  updatePlayIcon(false);
+});
+
+function seekAudio(e) {
+  if (!audioEl.duration) return;
+  const bar = document.getElementById('audioProgressBar');
+  const rect = bar.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  audioEl.currentTime = pct * audioEl.duration;
+}
+
+function fmt(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+// ── SUBMIT / RESULTS ──
+function checkScore() {
+  stopAudio();
+  const answered = userAnswers.filter(a => a && a !== '').length;
+  const labels = ['Keep listening!', 'Good start!', 'Not bad!', 'Getting there!', 'Halfway there!', 'More than half!', 'Well done!', 'Impressive!', 'Almost there!', 'So close!', 'Perfect score!'];
+  document.getElementById('scoreNumber').textContent = `${answered}/11`;
+  document.getElementById('scoreLabel').textContent = labels[answered] || '';
+
+  // Build breakdown
+  const breakdown = document.getElementById('scoreBreakdown');
+  breakdown.innerHTML = '';
+  SONGS.forEach((song, i) => {
+    const got = userAnswers[i] && userAnswers[i] !== '';
+    const row = document.createElement('div');
+    row.className = 'score-row';
+    row.innerHTML = `
+      <div class="score-row-num">${i + 1}</div>
+      <div class="score-row-title">${got ? song.title : '—'}</div>
+      <div class="score-row-tick">${got ? '✦' : '○'}</div>
+    `;
+    breakdown.appendChild(row);
+  });
+
+  showScreen('score');
+}
+
+function revealAll() {
+  showScreen('results');
+  buildResultsName();
+  buildResultsList();
+}
+
+function buildResultsName() {
+  const container = document.getElementById('resultsName');
+  container.innerHTML = '';
+  SECRET_NAME.split('').forEach((ch, i) => {
+    const el = document.createElement('div');
+    el.className = 'results-name-letter';
+    el.textContent = ch;
+    container.appendChild(el);
+    setTimeout(() => el.classList.add('show'), 200 + i * 120);
+  });
+  setTimeout(() => {
+    document.getElementById('resultsTagline').classList.add('show');
+  }, 200 + SECRET_NAME.length * 120 + 400);
+}
+
+function buildResultsList() {
+  const list = document.getElementById('resultsList');
+  list.innerHTML = '';
+
+  SONGS.forEach((song, i) => {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+
+    const answered = userAnswers[i] && userAnswers[i] !== '';
+    const status = answered ? '✦' : '○';
+
+    // Bold first letter
+    const firstLetter = song.title[0];
+    const rest = song.title.slice(1);
+
+    card.innerHTML = `
+      <div class="result-number">${i + 1}</div>
+      <div class="result-info">
+        <div class="result-song"><span class="first-letter">${firstLetter}</span>${rest}</div>
+        <div class="result-clue">${song.clue}</div>
+      </div>
+      <div class="result-status">${status}</div>
+    `;
+
+    list.appendChild(card);
+    setTimeout(() => card.classList.add('show'), 300 + SECRET_NAME.length * 120 + i * 150);
+  });
+
+  setTimeout(() => {
+    document.getElementById('birthdayFooter').classList.add('show');
+  }, 300 + SECRET_NAME.length * 120 + SONGS.length * 150 + 400);
+}
+</script>
+</body>
+</html>
