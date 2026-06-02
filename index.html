@@ -323,23 +323,23 @@
 
   .answer-slots {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px 14px;
+    flex-direction: column;
+    gap: 8px;
     min-height: 52px;
-    padding: 8px;
+    padding: 10px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
     margin-bottom: 16px;
-    align-items: center;
+    align-items: flex-start;
   }
 
   .answer-word-group {
     display: flex;
+    flex-direction: row;
     gap: 5px;
     flex-wrap: nowrap;
     flex-shrink: 0;
-    width: 100%;
   }
 
   .answer-word-label {
