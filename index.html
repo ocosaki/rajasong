@@ -324,7 +324,7 @@
   .answer-slots {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 6px 8px;
     min-height: 52px;
     padding: 8px;
     background: var(--surface);
@@ -332,6 +332,12 @@
     border-radius: 6px;
     margin-bottom: 16px;
     align-items: center;
+  }
+
+  .answer-word-group {
+    display: inline-flex;
+    gap: 5px;
+    flex-wrap: nowrap;
   }
 
   .answer-slot {
@@ -555,13 +561,15 @@
   .results-name {
     display: flex;
     justify-content: center;
-    gap: 4px;
-    flex-wrap: wrap;
+    gap: 3px;
+    flex-wrap: nowrap;
     margin-bottom: 16px;
+    overflow: hidden;
   }
 
   .results-name-letter {
-    width: 34px;
+    width: calc((100vw - 48px) / 11);
+    max-width: 34px;
     height: 40px;
     background: var(--card);
     border: 1px solid var(--gold-dim);
@@ -1138,15 +1146,15 @@ function loadSong(index) {
 function renderAnswerSlots(title) {
   const container = document.getElementById('answerSlots');
   container.innerHTML = '';
-  const parts = title.split('');
-  let letterIdx = 0;  // index into placedLetters
+  const words = title.split(' ');
+  let letterIdx = 0;
 
-  parts.forEach((ch, i) => {
-    const slot = document.createElement('div');
-    if (ch === ' ') {
-      slot.className = 'answer-slot space-slot';
-      slot.textContent = '';
-    } else {
+  words.forEach((word, wIdx) => {
+    const group = document.createElement('div');
+    group.className = 'answer-word-group';
+
+    word.split('').forEach(ch => {
+      const slot = document.createElement('div');
       const placed = placedLetters[letterIdx] || null;
       slot.className = placed ? 'answer-slot' : 'answer-slot empty';
       slot.textContent = placed ? placed.char : '';
@@ -1159,8 +1167,10 @@ function renderAnswerSlots(title) {
         };
       }
       letterIdx++;
-    }
-    container.appendChild(slot);
+      group.appendChild(slot);
+    });
+
+    container.appendChild(group);
   });
 }
 
@@ -1191,14 +1201,8 @@ function placeTile(tileIdx, ch) {
   const tileEl = document.querySelector(`.tile[data-tile-idx="${tileIdx}"]`);
   if (tileEl) tileEl.classList.add('used');
 
-  // Update next empty slot
-  const slots = document.querySelectorAll('.answer-slot:not(.space-slot)');
-  const nextEmpty = placedLetters.length - 1;
-  if (slots[nextEmpty]) {
-    slots[nextEmpty].textContent = ch;
-    slots[nextEmpty].classList.remove('empty');
-    slots[nextEmpty].onclick = () => returnTile(nextEmpty);
-  }
+  // Re-render to update slots (handles word groups correctly)
+  renderAnswerSlots(SONGS[currentSong].title);
 
   updateConfirmBtn();
 }
